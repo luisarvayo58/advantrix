@@ -449,10 +449,7 @@ async function consultarWebService() {
     try {
         const respuesta = await fetch(url, {
 			headers: {
-				// Si ngrok tiene auth básica:
-				'Authorization': 'Basic ' + btoa('usuario:contraseña'),
-				// O si usa un token:
-				// 'ngrok-skip-browser-warning': 'true'  // Para evitar página de advertencia de ngrok
+				'ngrok-skip-browser-warning': 'true'
 			}
 		});
 			
