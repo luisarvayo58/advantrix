@@ -1,4 +1,5 @@
-﻿<!DOCTYPE html>
+﻿
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -15,7 +16,7 @@
         flex-direction: column;
     }
 
-    /* ===== Panel superior de controles ===== */
+    /* ===== Panel superior de controles (AHORA COLAPSABLE) ===== */
     .panel {
         background: #ffffff;
         padding: 18px 22px;
@@ -25,8 +26,20 @@
         flex-wrap: wrap;
         gap: 14px;
         align-items: flex-end;
-        z-index: 10; /* Asegura que esté por encima del iframe */
+        z-index: 10;
         position: relative;
+        
+        /* 🔧 NUEVO: Animación de colapso */
+        max-height: 300px;
+        overflow: hidden;
+        transition: max-height 0.4s ease, padding 0.4s ease, border-width 0.4s ease;
+    }
+
+    .panel.collapsed {
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        border-bottom-width: 0;
     }
 
     .control {
@@ -96,14 +109,8 @@
         box-shadow: 0 5px 12px rgba(0,0,0,0.15);
     }
 
-    .btn:active:not(:disabled) {
-        transform: translateY(0);
-    }
-
-    .btn:disabled {
-        opacity: 0.55;
-        cursor: not-allowed;
-    }
+    .btn:active:not(:disabled) { transform: translateY(0); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
     .btn-start { background: #27ae60; border-color: #1e8449; }
     .btn-stop  { background: #e74c3c; border-color: #c0392b; }
@@ -148,13 +155,75 @@
         50% { opacity: 0.5; }
     }
 
-    /* ===== Área de contenido (AHORA ES UN IFRAME) ===== */
+    /* ===== 🔧 NUEVO: Botón flotante para alternar el panel ===== */
+    .toggle-panel-btn {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: #3498db;
+        color: #fff;
+        border: 2px solid #2874a6;
+        cursor: pointer;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        transition: all 0.3s ease;
+    }
+
+    .toggle-panel-btn:hover {
+        background: #2874a6;
+        transform: scale(1.1);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+    }
+
+    .toggle-panel-btn:active { transform: scale(0.95); }
+
+    /* Cuando el panel está oculto, el botón baja un poco */
+    body.panel-hidden .toggle-panel-btn {
+        top: 12px;
+        background: #27ae60;
+        border-color: #1e8449;
+    }
+
+    /* Tooltip del botón */
+    .toggle-panel-btn::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        right: 54px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: #2c3e50;
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+    }
+
+    .toggle-panel-btn:hover::after { opacity: 1; }
+
+    /* ===== Área de contenido ===== */
     .content {
         flex: 1;
         padding: 16px;
         display: flex;
         flex-direction: column;
         min-height: 0;
+        transition: padding 0.4s ease;
+    }
+
+    /* 🔧 Cuando el panel está oculto, reducimos el padding superior */
+    body.panel-hidden .content {
+        padding-top: 8px;
     }
 
     .content-frame {
@@ -166,8 +235,7 @@
                     inset 0 1px 3px rgba(0,0,0,0.03);
         min-height: 400px;
         width: 100%;
-        /* Estilos específicos para que el iframe se comporte bien */
-        border: none; 
+        border: none;
     }
 
     .placeholder {
@@ -185,12 +253,44 @@
         margin-bottom: 12px;
         opacity: 0.5;
     }
+
+    /* 🔧 Indicador sutil de atajo de teclado */
+    .shortcut-hint {
+        position: fixed;
+        bottom: 12px;
+        right: 12px;
+        background: rgba(44, 62, 80, 0.85);
+        color: #fff;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 11px;
+        z-index: 50;
+        opacity: 0.7;
+        transition: opacity 0.3s ease;
+    }
+
+    .shortcut-hint:hover { opacity: 1; }
+
+    .shortcut-hint kbd {
+        background: #fff;
+        color: #2c3e50;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: monospace;
+        font-weight: bold;
+        margin: 0 2px;
+    }
 </style>
 </head>
 <body>
 
+<!-- 🔧 NUEVO: Botón flotante para alternar el panel -->
+<button class="toggle-panel-btn" id="btnTogglePanel" data-tooltip="Ocultar panel (H)" title="Alternar panel">
+    ▲
+</button>
+
 <!-- Panel de controles superiores -->
-<div class="panel">
+<div class="panel" id="panelControles">
     <div class="control">
         <label for="fechaInicio">Fecha Inicio</label>
         <input type="date" id="fechaInicio">
@@ -221,23 +321,27 @@
     </div>
 </div>
 
-<!-- Área donde se muestra el HTML del web service (Usando iframe para aislamiento) -->
+<!-- Área donde se muestra el HTML del web service -->
 <div class="content">
     <iframe class="content-frame" id="frameContenido" title="Contenido del Web Service" sandbox="allow-same-origin allow-scripts"></iframe>
     
-    <!-- Placeholder que se muestra cuando no hay datos -->
     <div class="placeholder" id="placeholderMensaje" style="display: none; margin-top: 16px;">
         <div class="icon">📡</div>
         <div>El contenido del web service se mostrará arriba.<br>
-        Presione <b>Consultar Ahora</b> o inicie el auto-update.</div if>
+        Presione <b>Consultar Ahora</b> o inicie el auto-update.</div>
     </div>
+</div>
+
+<!-- 🔧 NUEVO: Hint del atajo de teclado -->
+<div class="shortcut-hint">
+    Presiona <kbd>H</kbd> para ocultar/mostrar el panel
 </div>
 
 <script>
 /* =====================================================
    CONFIGURACIÓN
    ===================================================== */
-const URL_WS = "https://5eae-189-173-186-104.ngrok-free.app/api/dashboard/Decisiones"; // <-- Tu URL real
+const URL_WS = "https://5eae-189-173-186-104.ngrok-free.app/api/dashboard/decisiones"; // <-- Tu URL real
 
 /* =====================================================
    REFERENCIAS AL DOM
@@ -253,11 +357,42 @@ const estado          = document.getElementById('estado');
 const estadoTexto     = document.getElementById('estadoTexto');
 const frameContenido  = document.getElementById('frameContenido');
 const placeholderMsg  = document.getElementById('placeholderMensaje');
+const panelControles  = document.getElementById('panelControles');
+const btnTogglePanel  = document.getElementById('btnTogglePanel');
 
 let timerId = null;
 
 /* =====================================================
-   🔧 NUEVO: Sincronizar Fecha Fin con Fecha Inicio
+   🔧 NUEVO: Toggle del panel de controles
+   ===================================================== */
+function togglePanel() {
+    const estaOculto = panelControles.classList.toggle('collapsed');
+    document.body.classList.toggle('panel-hidden', estaOculto);
+    
+    // Cambiar el ícono del botón y el tooltip
+    if (estaOculto) {
+        btnTogglePanel.innerHTML = '▼';
+        btnTogglePanel.setAttribute('data-tooltip', 'Mostrar panel (H)');
+    } else {
+        btnTogglePanel.innerHTML = '▲';
+        btnTogglePanel.setAttribute('data-tooltip', 'Ocultar panel (H)');
+    }
+}
+
+btnTogglePanel.addEventListener('click', togglePanel);
+
+// 🔧 Atajo de teclado: tecla 'H' para alternar el panel
+document.addEventListener('keydown', function(e) {
+    // Solo si no estamos escribiendo en un input
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    
+    if (e.key === 'h' || e.key === 'H') {
+        togglePanel();
+    }
+});
+
+/* =====================================================
+   Sincronizar Fecha Fin con Fecha Inicio
    ===================================================== */
 fechaInicio.addEventListener('change', function() {
     if (this.value) {
@@ -291,12 +426,12 @@ function inicializarFechas() {
     const hoy = new Date().toISOString().split('T')[0];
     if (!fechaInicio.value) {
         fechaInicio.value = hoy;
-        fechaFin.value = hoy; // También inicializa la fecha fin
+        fechaFin.value = hoy;
     }
 }
 
 /* =====================================================
-   LLAMADA AL WEB SERVICE (USANDO IFRAME SRCDOC)
+   LLAMADA AL WEB SERVICE
    ===================================================== */
 async function consultarWebService() {
     const fi = formatearFecha(fechaInicio.value);
@@ -312,23 +447,15 @@ async function consultarWebService() {
     console.log('Llamando a:', url);
 
     try {
-        const respuesta = await fetch(url, {
-			headers: {
-				'ngrok-skip-browser-warning': 'true'
-			}
-		});
+        const respuesta = await fetch(url); 
         
         if (!respuesta.ok) {
             throw new Error(`Error HTTP: ${respuesta.status} ${respuesta.statusText}`);
         }
         
         const html = await respuesta.text();
-        
-        // 🔧 SOLUCIÓN CLAVE: Usar srcdoc en lugar de innerHTML
-        // Esto carga el HTML completo de forma aislada dentro del iframe
         frameContenido.srcdoc = html;
         
-        // Ocultar el mensaje de placeholder y mostrar el iframe
         placeholderMsg.style.display = 'none';
         frameContenido.style.display = 'block';
         
@@ -397,7 +524,6 @@ btnConsultar.addEventListener('click', consultarWebService);
 inicializarFechas();
 actualizarContadorRecargas();
 
-// Mostrar placeholder al inicio
 frameContenido.style.display = 'none';
 placeholderMsg.style.display = 'block';
 </script>
