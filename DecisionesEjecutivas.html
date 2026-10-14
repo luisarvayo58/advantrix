@@ -25,6 +25,8 @@
         flex-wrap: wrap;
         gap: 14px;
         align-items: flex-end;
+        z-index: 10; /* Asegura que esté por encima del iframe */
+        position: relative;
     }
 
     .control {
@@ -146,7 +148,7 @@
         50% { opacity: 0.5; }
     }
 
-    /* ===== Área de contenido ===== */
+    /* ===== Área de contenido (AHORA ES UN IFRAME) ===== */
     .content {
         flex: 1;
         padding: 16px;
@@ -162,9 +164,10 @@
         border-radius: 10px;
         box-shadow: 0 4px 14px rgba(0,0,0,0.06),
                     inset 0 1px 3px rgba(0,0,0,0.03);
-        overflow: auto;
-        padding: 18px;
         min-height: 400px;
+        width: 100%;
+        /* Estilos específicos para que el iframe se comporte bien */
+        border: none; 
     }
 
     .placeholder {
@@ -172,6 +175,9 @@
         color: #95a5a6;
         padding: 60px 20px;
         font-size: 15px;
+        background: #ffffff;
+        border: 2px dashed #bdc3c7;
+        border-radius: 10px;
     }
 
     .placeholder .icon {
@@ -179,12 +185,6 @@
         margin-bottom: 12px;
         opacity: 0.5;
     }
-
-    .content-frame table { border-collapse: collapse; width: 100%; margin: 10px 0; }
-    .content-frame th, .content-frame td { border: 1px solid #dfe4ea; padding: 8px; text-align: left; }
-    .content-frame th { background: #f1f3f5; }
-    .content-frame h1, .content-frame h2, .content-frame h3 { color: #2c3e50; margin: 12px 0 8px; }
-    .content-frame p { margin: 8px 0; line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -221,14 +221,15 @@
     </div>
 </div>
 
-<!-- Área donde se inyecta el HTML del web service -->
+<!-- Área donde se muestra el HTML del web service (Usando iframe para aislamiento) -->
 <div class="content">
-    <div class="content-frame" id="frameContenido">
-        <div class="placeholder">
-            <div class="icon">📡</div>
-            <div>El contenido del web service se mostrará aquí.<br>
-            Presione <b>Consultar Ahora</b> o inicie el auto-update.</div>
-        </div>
+    <iframe class="content-frame" id="frameContenido" title="Contenido del Web Service" sandbox="allow-same-origin allow-scripts"></iframe>
+    
+    <!-- Placeholder que se muestra cuando no hay datos -->
+    <div class="placeholder" id="placeholderMensaje" style="display: none; margin-top: 16px;">
+        <div class="icon">📡</div>
+        <div>El contenido del web service se mostrará arriba.<br>
+        Presione <b>Consultar Ahora</b> o inicie el auto-update.</div if>
     </div>
 </div>
 
@@ -236,8 +237,7 @@
 /* =====================================================
    CONFIGURACIÓN
    ===================================================== */
-// URL del web service que devuelve HTML.
-const URL_WS = "https://5eae-189-173-186-104.ngrok-free.app/api/dashboard/Decisiones"; // <-- cambia por tu URL real
+const URL_WS = "https://tu-id-aleatorio.ngrok-free.app/api/reporte"; // <-- Tu URL real
 
 /* =====================================================
    REFERENCIAS AL DOM
@@ -252,21 +252,29 @@ const btnConsultar    = document.getElementById('btnConsultar');
 const estado          = document.getElementById('estado');
 const estadoTexto     = document.getElementById('estadoTexto');
 const frameContenido  = document.getElementById('frameContenido');
+const placeholderMsg  = document.getElementById('placeholderMensaje');
 
 let timerId = null;
 
 /* =====================================================
-   🔧 NUEVO: Formateador de fecha yyyy-MM-dd → yyyyMMdd
+   🔧 NUEVO: Sincronizar Fecha Fin con Fecha Inicio
+   ===================================================== */
+fechaInicio.addEventListener('change', function() {
+    if (this.value) {
+        fechaFin.value = this.value;
+    }
+});
+
+/* =====================================================
+   Formateador de fecha yyyy-MM-dd → yyyyMMdd
    ===================================================== */
 function formatearFecha(valor) {
-    // El input type="date" devuelve "yyyy-MM-dd".
-    // Eliminamos los guiones para obtener "yyyyMMdd".
     if (!valor) return '';
     return valor.replace(/-/g, '');
 }
 
 /* =====================================================
-   CONTADOR DE RECARGAS (persistente en localStorage)
+   CONTADOR DE RECARGAS
    ===================================================== */
 function actualizarContadorRecargas() {
     const clave = 'contadorRecargasPagina';
@@ -281,12 +289,14 @@ function actualizarContadorRecargas() {
    ===================================================== */
 function inicializarFechas() {
     const hoy = new Date().toISOString().split('T')[0];
-    if (!fechaInicio.value) fechaInicio.value = hoy;
-    if (!fechaFin.value)    fechaFin.value    = hoy;
+    if (!fechaInicio.value) {
+        fechaInicio.value = hoy;
+        fechaFin.value = hoy; // También inicializa la fecha fin
+    }
 }
 
 /* =====================================================
-   LLAMADA AL WEB SERVICE
+   LLAMADA AL WEB SERVICE (USANDO IFRAME SRCDOC)
    ===================================================== */
 async function consultarWebService() {
     const fi = formatearFecha(fechaInicio.value);
@@ -302,8 +312,6 @@ async function consultarWebService() {
     console.log('Llamando a:', url);
 
     try {
-        // Petición simple (sin headers personalizados) para evitar preflight OPTIONS
-		debugger;
         const respuesta = await fetch(url); 
         
         if (!respuesta.ok) {
@@ -312,20 +320,25 @@ async function consultarWebService() {
         
         const html = await respuesta.text();
         
-        // Inyección segura del HTML
-        frameContenido.innerHTML = html;
+        // 🔧 SOLUCIÓN CLAVE: Usar srcdoc en lugar de innerHTML
+        // Esto carga el HTML completo de forma aislada dentro del iframe
+        frameContenido.srcdoc = html;
+        
+        // Ocultar el mensaje de placeholder y mostrar el iframe
+        placeholderMsg.style.display = 'none';
+        frameContenido.style.display = 'block';
+        
         estadoTexto.textContent = 'Actualizado: ' + new Date().toLocaleTimeString();
         
     } catch (err) {
         console.error('Error detallado:', err);
-        frameContenido.innerHTML =
-            `<div class="placeholder" style="color:#e74c3c">
-                <div class="icon">⚠️</div>
-                <div><b>Error al conectar con el Web API</b><br>
-                ${err.message}<br>
-                <small>URL: ${url}</small><br>
-                <small>💡 Tip: Presiona F12 > Consola. Si dice "CORS policy", revisa la configuración de .NET.</small></div>
-             </div>`;
+        frameContenido.style.display = 'none';
+        placeholderMsg.style.display = 'block';
+        placeholderMsg.innerHTML =
+            `<div class="icon">⚠️</div>
+             <div style="color:#e74c3c"><b>Error al conectar con el Web API</b><br>
+             ${err.message}<br>
+             <small>URL: ${url}</small></div>`;
         estadoTexto.textContent = 'Error';
     }
 }
@@ -379,6 +392,10 @@ btnConsultar.addEventListener('click', consultarWebService);
    ===================================================== */
 inicializarFechas();
 actualizarContadorRecargas();
+
+// Mostrar placeholder al inicio
+frameContenido.style.display = 'none';
+placeholderMsg.style.display = 'block';
 </script>
 
 </body>
