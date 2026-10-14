@@ -1,0 +1,385 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Panel de Monitoreo</title>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        font-family: 'Segoe UI', Tahoma, sans-serif;
+        background: #ecf0f5;
+        color: #2c3e50;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* ===== Panel superior de controles ===== */
+    .panel {
+        background: #ffffff;
+        padding: 18px 22px;
+        border-bottom: 3px solid #3498db;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        align-items: flex-end;
+    }
+
+    .control {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .control label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #34495e;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .control input,
+    .control .display {
+        padding: 10px 12px;
+        font-size: 14px;
+        border: 2px solid #bdc3c7;
+        border-radius: 8px;
+        background: #ffffff;
+        outline: none;
+        transition: all 0.25s ease;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.05),
+                    0 2px 4px rgba(0,0,0,0.04);
+        min-width: 150px;
+    }
+
+    .control input:focus {
+        border-color: #3498db;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.05),
+                    0 0 0 3px rgba(52,152,219,0.15);
+    }
+
+    .control input:disabled {
+        background: #f4f6f8;
+        color: #95a5a6;
+        cursor: not-allowed;
+    }
+
+    .display {
+        background: #f8f9fb !important;
+        font-weight: 600;
+        color: #2980b9;
+        text-align: center;
+    }
+
+    /* Botones */
+    .btn {
+        padding: 10px 18px;
+        font-size: 14px;
+        font-weight: 600;
+        border: 2px solid transparent;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.1),
+                    0 1px 2px rgba(0,0,0,0.06);
+        color: #fff;
+        letter-spacing: 0.3px;
+    }
+
+    .btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 5px 12px rgba(0,0,0,0.15);
+    }
+
+    .btn:active:not(:disabled) {
+        transform: translateY(0);
+    }
+
+    .btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+    }
+
+    .btn-start { background: #27ae60; border-color: #1e8449; }
+    .btn-stop  { background: #e74c3c; border-color: #c0392b; }
+    .btn-fetch { background: #3498db; border-color: #2874a6; }
+
+    /* Indicador de estado */
+    .status {
+        margin-left: auto;
+        padding: 8px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #f4f6f8;
+        border: 2px solid #bdc3c7;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .status .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #95a5a6;
+    }
+
+    .status.active {
+        background: #e8f8f0;
+        border-color: #27ae60;
+        color: #1e8449;
+    }
+
+    .status.active .dot {
+        background: #27ae60;
+        box-shadow: 0 0 0 3px rgba(39,174,96,0.25);
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    /* ===== Área de contenido ===== */
+    .content {
+        flex: 1;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .content-frame {
+        flex: 1;
+        background: #ffffff;
+        border: 2px solid #bdc3c7;
+        border-radius: 10px;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.06),
+                    inset 0 1px 3px rgba(0,0,0,0.03);
+        overflow: auto;
+        padding: 18px;
+        min-height: 400px;
+    }
+
+    .placeholder {
+        text-align: center;
+        color: #95a5a6;
+        padding: 60px 20px;
+        font-size: 15px;
+    }
+
+    .placeholder .icon {
+        font-size: 48px;
+        margin-bottom: 12px;
+        opacity: 0.5;
+    }
+
+    .content-frame table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+    .content-frame th, .content-frame td { border: 1px solid #dfe4ea; padding: 8px; text-align: left; }
+    .content-frame th { background: #f1f3f5; }
+    .content-frame h1, .content-frame h2, .content-frame h3 { color: #2c3e50; margin: 12px 0 8px; }
+    .content-frame p { margin: 8px 0; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<!-- Panel de controles superiores -->
+<div class="panel">
+    <div class="control">
+        <label for="fechaInicio">Fecha Inicio</label>
+        <input type="date" id="fechaInicio">
+    </div>
+
+    <div class="control">
+        <label for="fechaFin">Fecha Fin</label>
+        <input type="date" id="fechaFin">
+    </div>
+
+    <div class="control">
+        <label>Recargas</label>
+        <div class="display" id="contadorRecargas">0</div>
+    </div>
+
+    <div class="control">
+        <label for="minutosUpdate">Min. entre updates</label>
+        <input type="number" id="minutosUpdate" min="1" step="1" value="5">
+    </div>
+
+    <button class="btn btn-start" id="btnIniciar">▶ Iniciar Auto-Update</button>
+    <button class="btn btn-stop"  id="btnDetener" disabled>■ Detener</button>
+    <button class="btn btn-fetch"  id="btnConsultar">⟳ Consultar Ahora</button>
+
+    <div class="status" id="estado">
+        <span class="dot"></span>
+        <span id="estadoTexto">Inactivo</span>
+    </div>
+</div>
+
+<!-- Área donde se inyecta el HTML del web service -->
+<div class="content">
+    <div class="content-frame" id="frameContenido">
+        <div class="placeholder">
+            <div class="icon">📡</div>
+            <div>El contenido del web service se mostrará aquí.<br>
+            Presione <b>Consultar Ahora</b> o inicie el auto-update.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+/* =====================================================
+   CONFIGURACIÓN
+   ===================================================== */
+// URL del web service que devuelve HTML.
+const URL_WS = "https://5eae-189-173-186-104.ngrok-free.app/api/dashboard/Decisiones"; // <-- cambia por tu URL real
+
+/* =====================================================
+   REFERENCIAS AL DOM
+   ===================================================== */
+const fechaInicio     = document.getElementById('fechaInicio');
+const fechaFin        = document.getElementById('fechaFin');
+const contadorRecargas= document.getElementById('contadorRecargas');
+const minutosUpdate   = document.getElementById('minutosUpdate');
+const btnIniciar      = document.getElementById('btnIniciar');
+const btnDetener      = document.getElementById('btnDetener');
+const btnConsultar    = document.getElementById('btnConsultar');
+const estado          = document.getElementById('estado');
+const estadoTexto     = document.getElementById('estadoTexto');
+const frameContenido  = document.getElementById('frameContenido');
+
+let timerId = null;
+
+/* =====================================================
+   🔧 NUEVO: Formateador de fecha yyyy-MM-dd → yyyyMMdd
+   ===================================================== */
+function formatearFecha(valor) {
+    // El input type="date" devuelve "yyyy-MM-dd".
+    // Eliminamos los guiones para obtener "yyyyMMdd".
+    if (!valor) return '';
+    return valor.replace(/-/g, '');
+}
+
+/* =====================================================
+   CONTADOR DE RECARGAS (persistente en localStorage)
+   ===================================================== */
+function actualizarContadorRecargas() {
+    const clave = 'contadorRecargasPagina';
+    let valor = parseInt(localStorage.getItem(clave) || '0', 10);
+    valor += 1;
+    localStorage.setItem(clave, valor.toString());
+    contadorRecargas.textContent = valor;
+}
+
+/* =====================================================
+   FECHAS POR DEFECTO (hoy)
+   ===================================================== */
+function inicializarFechas() {
+    const hoy = new Date().toISOString().split('T')[0];
+    if (!fechaInicio.value) fechaInicio.value = hoy;
+    if (!fechaFin.value)    fechaFin.value    = hoy;
+}
+
+/* =====================================================
+   LLAMADA AL WEB SERVICE
+   ===================================================== */
+async function consultarWebService() {
+    const fi = formatearFecha(fechaInicio.value);
+    const ff = formatearFecha(fechaFin.value);
+
+    if (!fi || !ff) {
+        alert('Debe seleccionar ambas fechas.');
+        return;
+    }
+
+    const url = `${URL_WS}?fechaInicio=${fi}&fechaFin=${ff}`;
+    estadoTexto.textContent = 'Consultando...';
+    console.log('Llamando a:', url);
+
+    try {
+        // Petición simple (sin headers personalizados) para evitar preflight OPTIONS
+		debugger;
+        const respuesta = await fetch(url); 
+        
+        if (!respuesta.ok) {
+            throw new Error(`Error HTTP: ${respuesta.status} ${respuesta.statusText}`);
+        }
+        
+        const html = await respuesta.text();
+        
+        // Inyección segura del HTML
+        frameContenido.innerHTML = html;
+        estadoTexto.textContent = 'Actualizado: ' + new Date().toLocaleTimeString();
+        
+    } catch (err) {
+        console.error('Error detallado:', err);
+        frameContenido.innerHTML =
+            `<div class="placeholder" style="color:#e74c3c">
+                <div class="icon">⚠️</div>
+                <div><b>Error al conectar con el Web API</b><br>
+                ${err.message}<br>
+                <small>URL: ${url}</small><br>
+                <small>💡 Tip: Presiona F12 > Consola. Si dice "CORS policy", revisa la configuración de .NET.</small></div>
+             </div>`;
+        estadoTexto.textContent = 'Error';
+    }
+}
+
+/* =====================================================
+   CONTROL DEL TIMER
+   ===================================================== */
+function iniciarAutoUpdate() {
+    const minutos = parseInt(minutosUpdate.value, 10);
+    if (isNaN(minutos) || minutos < 1) {
+        alert('Ingrese un número de minutos válido (≥ 1).');
+        return;
+    }
+
+    minutosUpdate.disabled = true;
+    btnIniciar.disabled    = true;
+    btnDetener.disabled    = false;
+
+    estado.classList.add('active');
+    estadoTexto.textContent = `Activo (cada ${minutos} min)`;
+
+    consultarWebService();
+
+    const ms = minutos * 60 * 1000;
+    timerId = setInterval(consultarWebService, ms);
+}
+
+function detenerAutoUpdate() {
+    if (timerId) {
+        clearInterval(timerId);
+        timerId = null;
+    }
+
+    minutosUpdate.disabled = false;
+    btnIniciar.disabled    = false;
+    btnDetener.disabled    = true;
+
+    estado.classList.remove('active');
+    estadoTexto.textContent = 'Detenido';
+}
+
+/* =====================================================
+   EVENTOS
+   ===================================================== */
+btnIniciar.addEventListener('click', iniciarAutoUpdate);
+btnDetener.addEventListener('click', detenerAutoUpdate);
+btnConsultar.addEventListener('click', consultarWebService);
+
+/* =====================================================
+   INIT
+   ===================================================== */
+inicializarFechas();
+actualizarContadorRecargas();
+</script>
+
+</body>
+</html>
