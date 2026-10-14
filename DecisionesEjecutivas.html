@@ -312,7 +312,11 @@ async function consultarWebService() {
     console.log('Llamando a:', url);
 
     try {
-        const respuesta = await fetch(url); 
+        const respuesta = await fetch(url, {
+			headers: {
+				'ngrok-skip-browser-warning': 'true'
+			}
+		});
         
         if (!respuesta.ok) {
             throw new Error(`Error HTTP: ${respuesta.status} ${respuesta.statusText}`);
