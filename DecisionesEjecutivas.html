@@ -447,8 +447,15 @@ async function consultarWebService() {
     console.log('Llamando a:', url);
 
     try {
-        const respuesta = await fetch(url); 
-        
+        const respuesta = await fetch(url, {
+			headers: {
+				// Si ngrok tiene auth básica:
+				'Authorization': 'Basic ' + btoa('usuario:contraseña'),
+				// O si usa un token:
+				// 'ngrok-skip-browser-warning': 'true'  // Para evitar página de advertencia de ngrok
+			}
+		});
+			
         if (!respuesta.ok) {
             throw new Error(`Error HTTP: ${respuesta.status} ${respuesta.statusText}`);
         }
